@@ -1,0 +1,35 @@
+version: '2'
+services:
+  web:
+    build: .
+    container_name: order_web
+    command: npm run start:dev
+    volumes:
+      - .:/usr/app/
+      - /usr/app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mysql
+    networks:
+      - default
+      - payments_default
+    external_links:
+      - payments_web:payments.local
+  mysql:
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: "1"
+      MYSQL_DATABASE: "ec"
+      MYSQL_USER: "thien"
+      MYSQL_PASSWORD: "1"
+    volumes:
+      - ../mysql:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d/
+    ports:
+      - 3282:3306
+    expose:
+      - 3306
+networks:
+  payments_default:
+    external: true
