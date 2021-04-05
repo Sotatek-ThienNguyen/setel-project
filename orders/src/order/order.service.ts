@@ -48,7 +48,6 @@ export class OrderService {
         return order;
     }
 
-    // TODO: this piece of code is too messy and not testable, need refactor
     doPayment(order: Order) {
         const self = this;
         const http = require('http');
@@ -59,7 +58,6 @@ export class OrderService {
             orderNumber: order.nmbr,
         });
 
-        // TODO: move payment address to env
         const options = {
             hostname: 'payments.local',
             port: 3001,
