@@ -1,8 +1,8 @@
 {
   "type": "mysql",
-  "host": "localhost",
-  "port": 3282,
-  "username": "root",
+  "host": "mysql",
+  "port": 3306,
+  "username": "thien",
   "password": "1",
   "database": "ec",
   "entities": ["src/**/**.entity{.ts,.js}"],
