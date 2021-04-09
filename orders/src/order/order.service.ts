@@ -13,12 +13,40 @@ export class OrderService {
         private readonly orderHistoryService: OrderHistoryService,
     ) {}
 
-    async findAll(): Promise<Order[]> {
-        return await this.orderRepository.find();
+    async findAll(): Promise<Object> {
+        var orders = await this.orderRepository.find();
+        var lastModifiedOrder = await this.orderRepository.findOne({}, { order: { 'updateTimestamp': -1 } })
+
+        return {
+            list_orders: orders,
+            last_modified: lastModifiedOrder.updateTimestamp
+        };
     }
 
     async findOne(nmbr: string): Promise<Order> {
-        return await this.orderRepository.findOne({nmbr});
+        return await this.orderRepository.findOne({ nmbr });
+    }
+
+    async getDetailOrder(id: number): Promise<Order> {
+        return await this.orderRepository.findOne({ id });
+    }
+
+    async hasNewUpdate(lastModified: any): Promise<Object> {
+        let hasNewUpdate = await this.orderRepository.createQueryBuilder()
+            .where('updateTimestamp > :lastModified', { lastModified: lastModified})
+            .getOne()
+        return hasNewUpdate
+    }
+
+    async fetchListOrder(params: any): Promise<Object> {
+        let hasNewUpdate = await this.hasNewUpdate(params.last_modified)
+        if (!hasNewUpdate) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            hasNewUpdate = await this.hasNewUpdate(params.last_modified)
+        }
+        return {
+            success: hasNewUpdate
+        }
     }
 
     async cancel(nmbr: string): Promise<UpdateResult> {

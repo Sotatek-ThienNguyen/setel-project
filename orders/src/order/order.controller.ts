@@ -1,4 +1,4 @@
-import { Controller, Body, Param, Get, Post, Put } from '@nestjs/common';
+import { Controller, Body, Param, Get, Post, Put, Query } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 
@@ -27,5 +27,21 @@ export class OrderController {
   @Get('status/:number')
   findOne(@Param('number') nmbr) {
     return this.orderService.findOne(nmbr);
+  }
+
+  // @Get('/:id')
+  // getDetailOrder(@Param('id') orderId) {
+  //   return this.orderService.getDetailOrder(orderId);
+  // } 
+  // why cannot put in here?
+
+  @Get('/fetch-order')
+  async fetchListOrder(@Query() params: any) {
+    return await this.orderService.fetchListOrder(params);
+  }
+
+  @Get('/:id')
+  getDetailOrder(@Param('id') orderId) {
+    return this.orderService.getDetailOrder(orderId);
   }
 }

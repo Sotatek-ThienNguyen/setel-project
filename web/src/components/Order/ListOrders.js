@@ -1,6 +1,9 @@
 import React, {Component} from 'react'
 import Button from 'react-bootstrap/Button';
-import ModalCreateOrder from './Modal/ModalCreateOrder'
+import ModalCreateOrder from './Modal/ModalCreateOrder';
+import orderAPI from '../../api/orderAPI';
+import OrderDetail from './OrderDetail';
+import { Route, NavLink } from 'react-router-dom';
 
 export default class ListOrders extends Component {
     constructor(props) {
@@ -9,31 +12,43 @@ export default class ListOrders extends Component {
 			listOrders: [],
 			isLoaded: false,
 			error: null,
-			isShowModalCreateOrder: false
+			isShowModalCreateOrder: false,
+			lastModified: null,
         }
 	}
 		
 	componentDidMount() {
-		console.log('data')
-		fetch("http://localhost:3000/order", { 
-			method: 'get',
+		this.getListOrders()
+	}
+
+	getListOrders = () => {
+		orderAPI.getListOrders()
+		.then(res => {
+			this.setState({
+				isLoaded: true,
+				listOrders: res.data.list_orders || [],
+				lastModified: res.data.last_modified || null
+			});
+			this.fetchListOrder()
 		})
-		.then(res => res.json())
-		.then(
-			(result) => {
-				console.log(result, '---------')
-				this.setState({
-					isLoaded: true,
-					listOrders: result
-				});
-			},
-			(error) => {
-				this.setState({
-					isLoaded: true,
-					error
-				});
+		.catch(e => {
+			console.log(e, 'catch error in getListOrders ')
+		})
+	}
+
+	fetchListOrder = async () => {
+		if (this.props.match.url !== '/') return;
+		let params = {
+			last_modified: this.state.lastModified
+		}
+		await orderAPI.fetchListOrder(params)
+		.then(res => {
+			if (res.data.success) {
+				this.getListOrders()
+			} else {
+				this.fetchListOrder(params)
 			}
-		);
+		})
 	}
 
 	showModalCreateOrder = () => {
@@ -46,8 +61,8 @@ export default class ListOrders extends Component {
 		this.setState({isShowModalCreateOrder: isShow})
 	}
 
-	renderTableData() {
-		return this.state.listOrders.map((order, index) => {
+	renderTableData(url) {
+		return this.state.listOrders && this.state.listOrders.map((order, index) => {
 			const { id, name, price, status } = order
 			return (
 				<tr key={index}>
@@ -63,6 +78,14 @@ export default class ListOrders extends Component {
 					<td className="px-6 py-4 whitespace-nowrap">
 						{ status }
 					</td>
+					<td className="px-6 py-4 whitespace-nowrap">
+						{/* <Button variant="outline-info mr-3">Detail</Button> */}
+						<NavLink key={index} to={`${url}order/${id}`}>
+							Detail
+						</NavLink>
+						<Route path={`${url}ordertt`} component={OrderDetail} />
+						<Button variant="outline-success">Edit</Button>
+					</td>
 				</tr>
 			)
 		})
@@ -73,9 +96,16 @@ export default class ListOrders extends Component {
     }
 
     render() {
+		var { match } = this.props;
+		console.log(match, 'match')
+		var url = match.url;
 			return (
 					<div className="flex flex-col p-8">
-						<ModalCreateOrder showModal={this.state.isShowModalCreateOrder} closeModal={this.toggleModalCreateOrder}/>
+						<ModalCreateOrder 
+							showModal={this.state.isShowModalCreateOrder} 
+							closeModal={this.toggleModalCreateOrder}
+							createSuccess={this.getListOrders}
+						/>
 						<div className="flex justify-between items-center mb-4">
 							<span className="font-bold text-3xl text-gray-600">List Orders</span>
 							{/* <button className="px-2 py-1 bg-green-600 text-gray-100 font-bold rounded hover:bg-green-500">Create Order</button> */}
@@ -100,13 +130,13 @@ export default class ListOrders extends Component {
 												<th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
 													Status
 												</th>
-												<th scope="col" className="relative px-6 py-3">
-													<span className="sr-only">Edit</span>
+												<th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+													Action
 												</th>
 											</tr>
 										</thead>
 										<tbody className="bg-white divide-y divide-gray-200">
-											{this.renderTableData()}
+											{this.renderTableData(url)}
 										</tbody>
 									</table>
 								</div>
