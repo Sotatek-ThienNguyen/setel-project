@@ -12,6 +12,10 @@ const createOrder = async (data: Object): Promise<> => {
     return axiosClient.post('/order', data);
 };
 
+const cancelOrder = async (nmbr: string): Promise<> => {
+    return axiosClient.put(`order/cancel/${nmbr}`);
+};
+
 const fetchListOrder = async (data: Object): Promise<> => {
     return await axiosClient.get('/order/fetch-order', {params: data});
 };
@@ -19,6 +23,7 @@ const fetchListOrder = async (data: Object): Promise<> => {
 const orderAPI = {
     getListOrders,
     createOrder,
+    cancelOrder,
     fetchListOrder,
     getDetailOrder,
 };

@@ -9,14 +9,15 @@ export class OrderController {
   @Post()
   create(@Body() dto: CreateOrderDto) {
     const order = this.orderService.add(dto);
-    this.orderService.doPayment(order);
+    setTimeout(() => {
+      this.orderService.doPayment(order);
+    }, 3000);
     return order;
   }
 
   @Put('cancel/:number')
   cancel(@Param('number') nmbr) {
-    this.orderService.cancel(nmbr);
-    return {status: true};
+    return this.orderService.cancel(nmbr);
   }
 
   @Get()

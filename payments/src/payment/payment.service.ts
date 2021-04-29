@@ -24,7 +24,8 @@ export class PaymentService {
             payment.address = dto.address;
             payment.price = dto.price;
             payment.orderNumber = dto.orderNumber;
-            payment.status = Math.random() >= 0.5 ? Status.CONFIRMED : Status.CANCELLED;
+            payment.status = Status.CONFIRMED; // TODO thiennd remove 
+            // payment.status = Math.random() >= 0.5 ? Status.CONFIRMED : Status.CANCELLED;
             this.paymentRepository.insert(payment);
             return payment;
         }.bind(this));

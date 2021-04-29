@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, HttpStatus, HttpException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, UpdateResult } from 'typeorm';
 import { Order, Status } from './order.entity';
 import { OrderHistoryService } from './order-history.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { TIME_TO_DELIVERY } from '../constants/order_constants';
+import * as moment from 'moment';
 @Injectable()
 export class OrderService {
     constructor(
@@ -12,6 +14,16 @@ export class OrderService {
         private readonly orderRepository: Repository<Order>,
         private readonly orderHistoryService: OrderHistoryService,
     ) {}
+
+    @Cron(CronExpression.EVERY_SECOND)
+    async handleCron() {
+        const modifiedAt = moment().subtract(TIME_TO_DELIVERY, 'seconds').format('YYYY-MM-DD h:mm:ss')
+        console.log('cronjob handle order modified at ', modifiedAt);
+        this.orderRepository.update(
+            { status: Status.CONFIRMED, updateTimestamp: modifiedAt },
+            { status: Status.DELIVERED, updateTimestamp: moment().format('YYYY-MM-DD h:mm:ss') },
+        )
+    }
 
     async findAll(): Promise<Object> {
         var orders = await this.orderRepository.find();
@@ -24,7 +36,12 @@ export class OrderService {
     }
 
     async findOne(nmbr: string): Promise<Order> {
-        return await this.orderRepository.findOne({ nmbr });
+        const orderDetail = await this.orderRepository.findOne({ nmbr });
+        if (!orderDetail) {
+            throw new NotFoundException('Order not found');
+        }
+
+        return orderDetail;
     }
 
     async getDetailOrder(id: number): Promise<Order> {
@@ -49,15 +66,39 @@ export class OrderService {
         }
     }
 
-    async cancel(nmbr: string): Promise<UpdateResult> {
+    async cancel(nmbr: string): Promise<Object> {
+        const order = await this.orderRepository.findOne({ nmbr });
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
+        if (![Status.CONFIRMED, Status.CREATED].includes(order.status)) {
+            throw new NotFoundException('Order only cancel with created and confirmed status');
+        }
+
         this.orderHistoryService.add(nmbr, Status.CANCELLED);
-        return this.orderRepository.update(
+        const cancelSuccess = this.orderRepository.update(
             { nmbr },
             { status: Status.CANCELLED, updateTimestamp: new Date() },
         );
+        if (!cancelSuccess) {
+            throw new HttpException(
+                {
+                    message: 'Something went wrong. Try again later!'
+                },
+                HttpStatus.BAD_REQUEST
+            )
+        }
+
+        return {
+            success: true
+        };
     }
 
     async confirm(nmbr: string): Promise<UpdateResult> {
+        const order = await this.orderRepository.findOne({ nmbr });
+        if (order.status !== 'created') {
+            throw new NotFoundException('Order only confirmed after created');
+        }
         this.orderHistoryService.add(nmbr, Status.CONFIRMED);
         return this.orderRepository.update(
             { nmbr },
@@ -106,14 +147,6 @@ export class OrderService {
                 const responseJson = JSON.parse(responseString);
                 if (responseJson.status === 'confirmed') {
                     self.confirm(responseJson.orderNumber);
-                    setTimeout(() => {
-                        self.orderHistoryService.add(responseJson.orderNumber, 'delivered');
-                        self.orderRepository.update(
-                            { nmbr: responseJson.orderNumber },
-                            { status: Status.DELIVERED, updateTimestamp: new Date() },
-                        );
-
-                    }, 5000);
                 } else {
                     self.cancel(responseJson.orderNumber);
                 }
