@@ -23,10 +23,10 @@ describe('OrderController', () => {
 
     orderController = app.get<OrderController>(OrderController);
     orderRepository = app.get<Repository<Order>>(getRepositoryToken(Order));
-    jest.spyOn(orderRepository, 'find').mockResolvedValueOnce(ordersFixture);
-    jest.spyOn(orderRepository, 'findOne').mockResolvedValueOnce(ordersFixture[0]);
-    jest.spyOn(orderRepository, 'insert').mockResolvedValueOnce(ordersFixture);
-    jest.spyOn(orderRepository, 'update').mockResolvedValueOnce(ordersFixture);
+    orderRepository.find = jest.fn().mockResolvedValue(ordersFixture)
+    orderRepository.findOne = jest.fn().mockResolvedValue(ordersFixture[0])
+    orderRepository.update = jest.fn().mockResolvedValue(ordersFixture)
+    orderRepository.insert = jest.fn().mockResolvedValue(ordersFixture)
 
     orderRepository.createQueryBuilder = jest.fn().mockReturnValue({
       where: jest.fn().mockReturnThis(),

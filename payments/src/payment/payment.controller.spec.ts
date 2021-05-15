@@ -24,7 +24,7 @@ describe('PaymentController', () => {
 
     paymentController = app.get<PaymentController>(PaymentController);
     paymentRepository = app.get<Repository<Payment>>(getRepositoryToken(Payment));
-    jest.spyOn(paymentRepository, 'find').mockResolvedValueOnce(Promise.resolve(paymentsFixture));
+    paymentRepository.find = jest.fn().mockResolvedValue(paymentsFixture)
   });
   
   describe('findAll', () => {
@@ -36,7 +36,8 @@ describe('PaymentController', () => {
   
   describe('create without exist record', () => {
       it('should return the payment', async () => {
-        jest.spyOn(paymentRepository, 'findOneOrFail').mockResolvedValueOnce(null);
+        paymentRepository.findOne = jest.fn().mockResolvedValue(null)
+        paymentRepository.insert = jest.fn().mockResolvedValue(dataCreatePayment)
         const newPayment = await paymentController.create(dataCreatePayment)
 
         expect(newPayment.name).toEqual(dataCreatePayment.name);
@@ -48,7 +49,7 @@ describe('PaymentController', () => {
 
   describe('create with exist record', () => {
     it('should return the payment', async () => {
-      jest.spyOn(paymentRepository, 'findOneOrFail').mockResolvedValueOnce(Promise.resolve(paymentsFixture[0]));
+      paymentRepository.findOne = jest.fn().mockResolvedValue(paymentsFixture[0])
       try {
         await paymentController.create(dataCreatePayment)
       } catch (error) {
