@@ -1,48 +1,59 @@
 import { Repository } from 'typeorm';
 import { PaymentController } from './payment.controller';
 import { PaymentService } from './payment.service';
-import { Payment } from './payment.entity';
-import { CreatePaymentDto } from './dto/create-payment.dto';
+import { Payment, Status } from './payment.entity';
+import { TestingModule, Test } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { paymentsFixture, dataCreatePayment } from './payment.fixture';
+import { HttpStatus } from '@nestjs/common';
 
 describe('PaymentController', () => {
   let paymentController: PaymentController;
-  let paymentService: PaymentService;
+  let paymentRepository: Repository<Payment>;
 
   beforeEach(async () => {
-    paymentService = new PaymentService(new Repository<Payment>());
-    paymentController = new PaymentController(paymentService);
-  });
+    const app: TestingModule = await Test.createTestingModule({
+      controllers: [PaymentController],
+      providers: [PaymentService,
+        {
+          provide: getRepositoryToken(Payment),
+          useClass: Repository,
+        },
+      ],
+    }).compile();
 
+    paymentController = app.get<PaymentController>(PaymentController);
+    paymentRepository = app.get<Repository<Payment>>(getRepositoryToken(Payment));
+    jest.spyOn(paymentRepository, 'find').mockResolvedValueOnce(Promise.resolve(paymentsFixture));
+  });
+  
   describe('findAll', () => {
-    it('should return an array of payments', () => {
-        const result = [
-            {
-                id: 1,
-                name: "name4",
-                address: "address4",
-                price: 4,
-                orderNumber: "zo4o4hme",
-                status: "cancelled",
-                createTimestamp: "2019-02-03T12:40:22.669Z",
-                updateTimestamp: "2019-02-03T12:40:22.669Z"
-            }
-        ];
-      jest.spyOn(paymentService, 'findAll').mockImplementation(() => result);
-      expect(paymentController.findAll()).toBe(result);
+    it('should return an array of payments', async () => {
+      const result = await paymentController.findAll();
+      expect(result).toEqual(paymentsFixture);
     });
   });
+  
+  describe('create without exist record', () => {
+      it('should return the payment', async () => {
+        jest.spyOn(paymentRepository, 'findOneOrFail').mockResolvedValueOnce(null);
+        const newPayment = await paymentController.create(dataCreatePayment)
 
-  describe('create', () => {
-    it('should return the payment', () => {
-        const result = {
-                name: "name4",
-                address: "address4",
-                price: 4,
-                orderNumber: "zo4o4hme",
-                status: "cancelled"
-            };
-      jest.spyOn(paymentService, 'add').mockImplementation(() => result);
-      expect(paymentController.create(new CreatePaymentDto())).toBe(result);
+        expect(newPayment.name).toEqual(dataCreatePayment.name);
+        expect(newPayment.address).toEqual(dataCreatePayment.address);
+        expect(newPayment.price).toEqual(dataCreatePayment.price);
+        expect(newPayment.status === Status.CANCELLED || newPayment.status === Status.CONFIRMED).toEqual(true);
+      });
+  });
+
+  describe('create with exist record', () => {
+    it('should return the payment', async () => {
+      jest.spyOn(paymentRepository, 'findOneOrFail').mockResolvedValueOnce(Promise.resolve(paymentsFixture[0]));
+      try {
+        await paymentController.create(dataCreatePayment)
+      } catch (error) {
+        expect(error.response.statusCode).toEqual(HttpStatus.BAD_REQUEST);
+      }
     });
   });
 });

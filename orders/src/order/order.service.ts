@@ -2,17 +2,16 @@ import { Injectable, NotFoundException, HttpStatus, HttpException } from '@nestj
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, UpdateResult } from 'typeorm';
 import { Order, Status } from './order.entity';
-import { OrderHistoryService } from './order-history.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { TIME_TO_DELIVERY } from '../constants/order_constants';
+import { TIME_TO_DELIVERY, ADMIN } from '../constants/order_constants';
+import * as _ from 'lodash';
 import * as moment from 'moment';
 @Injectable()
 export class OrderService {
     constructor(
         @InjectRepository(Order)
         private readonly orderRepository: Repository<Order>,
-        private readonly orderHistoryService: OrderHistoryService,
     ) {}
 
     @Cron(CronExpression.EVERY_SECOND)
@@ -25,9 +24,9 @@ export class OrderService {
         )
     }
 
-    async findAll(): Promise<Object> {
-        var orders = await this.orderRepository.find();
-        var lastModifiedOrder = await this.orderRepository.findOne({}, { order: { 'updateTimestamp': -1 } })
+    async findAll(userId: number): Promise<Object> {
+        var orders = await this.orderRepository.find({ createdBy: userId });
+        var lastModifiedOrder = await this.orderRepository.findOne({},{ where: { 'createdBy': userId }, order: { 'updateTimestamp': -1 } })
 
         return {
             list_orders: orders,
@@ -35,8 +34,8 @@ export class OrderService {
         };
     }
 
-    async findOne(nmbr: string): Promise<Order> {
-        const orderDetail = await this.orderRepository.findOne({ nmbr });
+    async findOne(id: number): Promise<Order> {
+        const orderDetail = await this.orderRepository.findOne({ id });
         if (!orderDetail) {
             throw new NotFoundException('Order not found');
         }
@@ -44,25 +43,21 @@ export class OrderService {
         return orderDetail;
     }
 
-    async getDetailOrder(id: number): Promise<Order> {
-        return await this.orderRepository.findOne({ id });
-    }
-
-    async hasNewUpdate(lastModified: any): Promise<Object> {
-        let hasNewUpdate = await this.orderRepository.createQueryBuilder()
+    async hasNewData(lastModified: any): Promise<Object> {
+        let hasNewData = await this.orderRepository.createQueryBuilder()
             .where('updateTimestamp > :lastModified', { lastModified: lastModified})
             .getOne()
-        return hasNewUpdate
+        return !_.isEmpty(hasNewData)
     }
 
     async fetchListOrder(params: any): Promise<Object> {
-        let hasNewUpdate = await this.hasNewUpdate(params.last_modified)
-        if (!hasNewUpdate) {
+        let hasNewData = await this.hasNewData(params.last_modified)
+        if (!hasNewData) {
             await new Promise(resolve => setTimeout(resolve, 5000));
-            hasNewUpdate = await this.hasNewUpdate(params.last_modified)
+            hasNewData = await this.hasNewData(params.last_modified)
         }
         return {
-            success: hasNewUpdate
+            has_new_data: hasNewData
         }
     }
 
@@ -71,11 +66,10 @@ export class OrderService {
         if (!order) {
             throw new NotFoundException('Order not found');
         }
-        if (![Status.CONFIRMED, Status.CREATED].includes(order.status)) {
+        if (order.status !== Status.CONFIRMED && order.status !== Status.CREATED) {
             throw new NotFoundException('Order only cancel with created and confirmed status');
         }
 
-        this.orderHistoryService.add(nmbr, Status.CANCELLED);
         const cancelSuccess = this.orderRepository.update(
             { nmbr },
             { status: Status.CANCELLED, updateTimestamp: new Date() },
@@ -90,7 +84,8 @@ export class OrderService {
         }
 
         return {
-            success: true
+            success: true,
+            message: 'Cancel order successfull.'
         };
     }
 
@@ -99,7 +94,6 @@ export class OrderService {
         if (order.status !== 'created') {
             throw new NotFoundException('Order only confirmed after created');
         }
-        this.orderHistoryService.add(nmbr, Status.CONFIRMED);
         return this.orderRepository.update(
             { nmbr },
             { status: Status.CONFIRMED, updateTimestamp: new Date() },
@@ -111,9 +105,9 @@ export class OrderService {
         order.name = dto.name;
         order.address = dto.address;
         order.price = dto.price;
+        order.createdBy = ADMIN;
         order.nmbr = Math.random().toString(36).substring(2, 6) + Math.random().toString(36).substring(2, 6);
         this.orderRepository.insert(order);
-        this.orderHistoryService.add(order.nmbr, Status.CREATED);
         return order;
     }
 
@@ -125,6 +119,7 @@ export class OrderService {
             address: order.address,
             price: order.price,
             orderNumber: order.nmbr,
+            createdBy: ADMIN,
         });
 
         const options = {

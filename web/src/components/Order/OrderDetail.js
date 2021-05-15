@@ -1,5 +1,4 @@
 import React, { Component } from "react";
-import Button from "react-bootstrap/Button";
 import orderAPI from "../../api/orderAPI";
 
 export default class OrderDetail extends Component {

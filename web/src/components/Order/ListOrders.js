@@ -8,6 +8,7 @@ import { Route, NavLink } from "react-router-dom";
 export default class ListOrders extends Component {
   constructor(props) {
     super(props);
+    this.wrapper = React.createRef();
     this.state = {
       listOrders: [],
       isLoaded: false,
@@ -43,7 +44,7 @@ export default class ListOrders extends Component {
       last_modified: this.state.lastModified,
     };
     await orderAPI.fetchListOrder(params).then((res) => {
-      if (res.data.success) {
+      if (res.data.has_new_data) {
         this.getListOrders();
       } else {
         this.fetchListOrder(params);
@@ -52,17 +53,17 @@ export default class ListOrders extends Component {
   };
 
   canCancelOrder = (status) => {
-	  return ['created', 'confirmed'].includes(status);
-  }
+    return ["created", "confirmed"].includes(status);
+  };
 
   cancelOrder = (nmbr, orderIndex) => {
-    if (!window.confirm('Do you want to cancel order?')) return;
+    if (!window.confirm("Do you want to cancel order?")) return;
     orderAPI
       .cancelOrder(nmbr)
       .then((res) => {
         let newListOrders = [...this.state.listOrders];
-        newListOrders[orderIndex].status = 'cancelled';
-        this.setState({listOrders: newListOrders});
+        newListOrders[orderIndex].status = "cancelled";
+        this.setState({ listOrders: newListOrders });
       })
       .catch((e) => {
         console.log(e, "catch error in cancelOrder ");
@@ -105,8 +106,14 @@ export default class ListOrders extends Component {
                 Detail
               </NavLink>
               <Route path={`${url}ordertt`} component={OrderDetail} />
-              { true && <Button variant="outline-success" onClick={this.cancelOrder.bind(this, nmbr, index)}>Cancel</Button> }
-              {/* { ['created', 'confirmed'].includes(status) && <Button variant="outline-success" onClick={this.cancelOrder.bind(this, nmbr)}>Cancel</Button> } */}
+              {true && (
+                <Button
+                  variant="outline-success"
+                  onClick={this.cancelOrder.bind(this, nmbr, index)}
+                >
+                  Cancel
+                </Button>
+              )}
             </td>
           </tr>
         );
@@ -125,17 +132,16 @@ export default class ListOrders extends Component {
     return (
       <div className="flex flex-col p-8">
         <ModalCreateOrder
+          ref={this.wrapper}
           showModal={this.state.isShowModalCreateOrder}
           closeModal={this.toggleModalCreateOrder}
           createSuccess={this.getListOrders}
         />
         <div className="flex justify-between items-center mb-4">
           <span className="font-bold text-3xl text-gray-600">List Orders</span>
-          {/* <button className="px-2 py-1 bg-green-600 text-gray-100 font-bold rounded hover:bg-green-500">Create Order</button> */}
           <Button variant="primary" onClick={this.showModalCreateOrder}>
             Create Order
           </Button>
-          {/* <Button variant="primary" onClick={this.showModalCreateOrder}>Create Order</Button> */}
         </div>
         <div className="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">

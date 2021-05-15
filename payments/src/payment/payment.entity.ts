@@ -29,6 +29,9 @@ export class Payment {
     })
     status: Status;
 
+    @Column()
+    createdBy: number;
+
     @Column({type: 'timestamp', default: () => 'CURRENT_TIMESTAMP'})
     createTimestamp: Date;
 
